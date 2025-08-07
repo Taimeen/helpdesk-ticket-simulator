@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Helpdesk Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .ticket-animation {
+            transition: all 0.3s ease;
+        }
+        .ticket-animation:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-blue-700 mb-2">IT Helpdesk Simulator</h1>
+            <p class="text-gray-600">Practice ticket management with realistic workflows</p>
+            <div class="flex justify-center space-x-4 mt-4">
+                <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/452b3721-32a3-4a33-9150-2108d6986b97.png" alt="Ticket System Logo - Modern blue IT helpdesk interface" class="h-10">
+                <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/991ee3d4-d212-4a6f-9b82-d3c0c6c0616f.png" alt="Workflow Simulation Logo - Process automation diagram" class="h-10">
+            </div>
+        </header>
+
+        <!-- Controls -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex flex-wrap gap-4 justify-between items-center">
+                <button id="createTicket" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition">
+                    Create New Ticket
+                </button>
+                
+                <div class="flex gap-2">
+                    <select id="filterStatus" class="border rounded px-3 py-2">
+                        <option value="all">All Statuses</option>
+                        <option value="open">Open</option>
+                        <option value="progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                    <select id="filterPriority" class="border rounded px-3 py-2">
+                        <option value="all">All Priorities</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tickets Display -->
+        <div id="ticketsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Tickets will be added here dynamically -->
+        </div>
+
+        <!-- Stats -->
+        <div class="mt-8 bg-white rounded-lg shadow-md p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="text-center p-4">
+                <div class="text-2xl font-bold text-blue-600" id="openCount">0</div>
+                <div class="text-gray-500">Open Tickets</div>
+            </div>
+            <div class="text-center p-4">
+                <div class="text-2xl font-bold text-yellow-500" id="progressCount">0</div>
+                <div class="text-gray-500">In Progress</div>
+            </div>
+            <div class="text-center p-4">
+                <div class="text-2xl font-bold text-green-500" id="resolvedCount">0</div>
+                <div class="text-gray-500">Resolved</div>
+            </div>
+            <div class="text-center p-4">
+                <div class="text-2xl font-bold text-gray-500" id="totalCount">0</div>
+                <div class="text-gray-500">Total Tickets</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket Modal (hidden by default) -->
+    <div id="ticketModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 class="text-xl font-bold mb-4" id="modalTitle">Create New Ticket</h2>
+            <form id="ticketForm">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">Title</label>
+                    <input type="text" id="ticketTitle" class="w-full border rounded px-3 py-2">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">Description</label>
+                    <textarea id="ticketDesc" class="w-full border rounded px-3 py-2 h-24"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-gray-700 mb-2">Priority</label>
+                        <select id="ticketPriority" class="w-full border rounded px-3 py-2">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2">Category</label>
+                        <select id="ticketCategory" class="w-full border rounded px-3 py-2">
+                            <option value="hardware">Hardware</option>
+                            <option value="software">Software</option>
+                            <option value="network">Network</option>
+                            <option value="account">Account</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelTicket" class="px-4 py-2 border rounded hover:bg-gray-100">
+                        Cancel
+                    </button>
+                    <button type="button" id="saveTicket" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                        Save Ticket
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Ticket System Logic
+        let tickets = [];
+        try {
+            // Check localStorage availability
+            localStorage.getItem('test');
+        } catch (e) {
+            alert('LocalStorage is not available. Ticket data will not persist.');
+        }
+        let currentEditId = null;
+
+        // DOM elements
+        const ticketsContainer = document.getElementById('ticketsContainer');
+        const ticketModal = document.getElementById('ticketModal');
+        const createTicketBtn = document.getElementById('createTicket');
+        const cancelTicketBtn = document.getElementById('cancelTicket');
+        const saveTicketBtn = document.getElementById('saveTicket');
+        const filterStatus = document.getElementById('filterStatus');
+        const filterPriority = document.getElementById('filterPriority');
+        
+        // Status counters
+        const openCountEl = document.getElementById('openCount');
+        const progressCountEl = document.getElementById('progressCount');
+        const resolvedCountEl = document.getElementById('resolvedCount');
+        const totalCountEl = document.getElementById('totalCount');
+
+        // Sample ticket data
+        const sampleTickets = [
+            { 
+                id: 1, 
+                title: "Printer not working", 
+                description: "The laser printer in accounting department is showing 'paper jam' error",
+                category: "hardware",
+                priority: "medium",
+                status: "open",
+                createdAt: new Date(Date.now() - 3600000) 
+            },
+            { 
+                id: 2, 
+                title: "Email login issue", 
+                description: "Cannot login to Outlook email - invalid credentials error",
+                category: "account",
+                priority: "high",
+                status: "progress",
+                createdAt: new Date(Date.now() - 7200000) 
+            }
+        ];
+
+        // Initialize tickets from localStorage or sample data
+        const storedTickets = localStorage.getItem('helpdesk-tickets');
+        tickets = storedTickets ? JSON.parse(storedTickets) : [...sampleTickets];
+        renderTickets();
+        updateCounters();
+
+        // Event Listeners
+        createTicketBtn.addEventListener('click', () => {
+            document.getElementById('modalTitle').textContent = 'Create New Ticket';
+            document.getElementById('ticketForm').reset();
+            currentEditId = null;
+            ticketModal.classList.remove('hidden');
+        });
+
+        cancelTicketBtn.addEventListener('click', () => {
+            ticketModal.classList.add('hidden');
+        });
+
+        saveTicketBtn.addEventListener('click', () => {
+            const title = document.getElementById('ticketTitle').value.trim();
+            const desc = document.getElementById('ticketDesc').value.trim();
+            const priority = document.getElementById('ticketPriority').value;
+            const category = document.getElementById('ticketCategory').value;
+            
+            if (!title || !desc) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            if (currentEditId) {
+                // Update existing ticket
+                const ticketIndex = tickets.findIndex(t => t.id === currentEditId);
+                if (ticketIndex !== -1) {
+                    tickets[ticketIndex] = {
+                        ...tickets[ticketIndex],
+                        title,
+                        description: desc,
+                        priority,
+                        category
+                    };
+                }
+            } else {
+                // Create new ticket
+                const newTicket = {
+                    id: Date.now(), // Simple unique ID
+                    title,
+                    description: desc,
+                    category,
+                    priority,
+                    status: "open",
+                    createdAt: new Date()
+                };
+                tickets.push(newTicket);
+            }
+
+            // Save to localStorage
+            localStorage.setItem('helpdesk-tickets', JSON.stringify(tickets));
+            renderTickets();
+            updateCounters();
+            ticketModal.classList.add('hidden');
+        });
+
+        filterStatus.addEventListener('change', () => {
+            renderTickets();
+        });
+
+        filterPriority.addEventListener('change', () => {
+            renderTickets();
+        });
+
+        // Helper Functions
+        function renderTickets() {
+            ticketsContainer.innerHTML = '';
+            
+            const statusFilter = filterStatus.value;
+            const priorityFilter = filterPriority.value;
+            
+            const filteredTickets = tickets.filter(ticket => {
+                return (statusFilter === 'all' || ticket.status.includes(statusFilter)) && 
+                       (priorityFilter === 'all' || ticket.priority === priorityFilter);
+            });
+
+            filteredTickets.forEach(ticket => {
+                const ticketEl = document.createElement('div');
+                ticketEl.className = `ticket-animation bg-white rounded-lg shadow p-4 flex flex-col ${getPriorityBorder(ticket.priority)}`;
+                
+                ticketEl.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-bold text-lg">${ticket.title}</h3>
+                        <span class="text-xs px-2 py-1 rounded ${getStatusClass(ticket.status)}">
+                            ${ticket.status.toUpperCase()}
+                        </span>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3">${ticket.description}</p>
+                    <div class="flex justify-between items-center mt-auto">
+                        <div class="flex gap-2">
+                            <span class="text-xs px-2 py-1 rounded ${getCategoryClass(ticket.category)}">
+                                ${ticket.category}
+                            </span>
+                            <span class="text-xs px-2 py-1 rounded ${getPriorityClass(ticket.priority)}">
+                                ${ticket.priority}
+                            </span>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            ${formatDate(ticket.createdAt)}
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-3 pt-3 border-t">
+                        <button data-id="${ticket.id}" class="action-btn edit-btn text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded">
+                            Edit
+                        </button>
+                        <button data-id="${ticket.id}" class="action-btn status-btn text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 px-2 py-1 rounded">
+                            ${getNextStatusAction(ticket.status)}
+                        </button>
+                    </div>
+                `;
+                
+                ticketsContainer.appendChild(ticketEl);
+            });
+
+            // Add event listeners to dynamically created buttons
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const ticketId = parseInt(e.target.dataset.id);
+                    editTicket(ticketId);
+                });
+            });
+
+            document.querySelectorAll('.status-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const ticketId = parseInt(e.target.dataset.id);
+                    updateTicketStatus(ticketId);
+                });
+            });
+        }
+
+        function editTicket(id) {
+            const ticket = tickets.find(t => t.id === id);
+            if (ticket) {
+                document.getElementById('modalTitle').textContent = 'Edit Ticket';
+                document.getElementById('ticketTitle').value = ticket.title;
+                document.getElementById('ticketDesc').value = ticket.description;
+                document.getElementById('ticketPriority').value = ticket.priority;
+                document.getElementById('ticketCategory').value = ticket.category;
+                currentEditId = id;
+                ticketModal.classList.remove('hidden');
+            }
+        }
+
+        function updateTicketStatus(id) {
+            const ticketIndex = tickets.findIndex(t => t.id === id);
+            if (ticketIndex !== -1) {
+                const ticket = tickets[ticketIndex];
+                
+                // Simple status progression
+                if (ticket.status === 'open') {
+                    ticket.status = 'progress';
+                } else if (ticket.status === 'progress') {
+                    ticket.status = 'resolved';
+                } else if (ticket.status === 'resolved') {
+                    ticket.status = 'closed';
+                }
+                
+                // Save to localStorage
+                localStorage.setItem('helpdesk-tickets', JSON.stringify(tickets));
+                renderTickets();
+                updateCounters();
+            }
+        }
+
+        function updateCounters() {
+            const open = tickets.filter(t => t.status === 'open').length;
+            const progress = tickets.filter(t => t.status === 'progress').length;
+            const resolved = tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length;
+            
+            openCountEl.textContent = open;
+            progressCountEl.textContent = progress;
+            resolvedCountEl.textContent = resolved;
+            totalCountEl.textContent = tickets.length;
+        }
+
+        function getNextStatusAction(status) {
+            const actions = {
+                'open': 'Start Work',
+                'progress': 'Mark Resolved',
+                'resolved': 'Close Ticket'
+            };
+            return actions[status] || 'Update';
+        }
+
+        function getStatusClass(status) {
+            const classes = {
+                'open': 'bg-blue-100 text-blue-800',
+                'progress': 'bg-yellow-100 text-yellow-800',
+                'resolved': 'bg-green-100 text-green-800',
+                'closed': 'bg-gray-100 text-gray-800'
+            };
+            return classes[status] || 'bg-gray-100';
+        }
+
+        function getPriorityClass(priority) {
+            const classes = {
+                'low': 'bg-green-100 text-green-800',
+                'medium': 'bg-yellow-100 text-yellow-800',
+                'high': 'bg-red-100 text-red-800'
+            };
+            return classes[priority] || 'bg-gray-100';
+        }
+
+        function getCategoryClass(category) {
+            const classes = {
+                'hardware': 'bg-purple-100 text-purple-800',
+                'software': 'bg-blue-100 text-blue-800',
+                'network': 'bg-orange-100 text-orange-800',
+                'account': 'bg-teal-100 text-teal-800'
+            };
+            return classes[category] || 'bg-gray-100';
+        }
+
+        function getPriorityBorder(priority) {
+            const borders = {
+                'low': 'border-l-4 border-green-400',
+                'medium': 'border-l-4 border-yellow-400',
+                'high': 'border-l-4 border-red-400'
+            };
+            return borders[priority] || 'border-l-4 border-gray-400';
+        }
+
+        function formatDate(dateStr) {
+            const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+    </script>
+</body>
+</html>
